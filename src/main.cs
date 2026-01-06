@@ -60,6 +60,11 @@ class Program
                     case "cd":
                     {
                         var targetDir = commandTerms[1];
+                        if (targetDir == "~")
+                        {
+                            targetDir = Environment.GetEnvironmentVariable("HOME");
+                        }
+                        
                         if (Directory.Exists(targetDir))
                         {
                             Directory.SetCurrentDirectory(targetDir);

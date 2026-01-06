@@ -12,7 +12,7 @@ class Program
             
             if (wantedCommand != null)
             {
-                var commandTerms = wantedCommand.Split(" ", 2);
+                var commandTerms = wantedCommand.Split(" ");
 
                 {
                     switch (commandTerms[0])
@@ -23,7 +23,7 @@ class Program
                         {
                             if (commandTerms.Length > 1)
                             {
-                                Console.WriteLine(commandTerms[1]);
+                                Console.WriteLine(string.Join(' ', commandTerms[1..]));
                             }
 
                             goto EndOfLoop;
@@ -57,13 +57,16 @@ class Program
 
                 if (execPath != null)
                 {
-                    using Process proc = new Process();
-                    proc.StartInfo.FileName = execPath;
-                    proc.StartInfo.UseShellExecute = false;
-                    proc.StartInfo.RedirectStandardInput = false;
-                    proc.StartInfo.RedirectStandardOutput = false;
-                    proc.StartInfo.RedirectStandardError = false;
-                    proc.StartInfo.CreateNoWindow = true;
+                    using var proc = new Process();
+                    var startInfo = new ProcessStartInfo(execPath, commandTerms[1..])
+                    {
+                        UseShellExecute = false,
+                        RedirectStandardInput = false,
+                        RedirectStandardOutput = false,
+                        RedirectStandardError = false,
+                        CreateNoWindow = true
+                    };
+                    proc.StartInfo = startInfo;
                     proc.Start();
                     proc.WaitForExit();
                     

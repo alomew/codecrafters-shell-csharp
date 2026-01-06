@@ -25,14 +25,25 @@ class Program
                             Console.WriteLine(commandTerms[1]);
                         }
 
-                        goto EndOfLoop;
+                        break;
+                    }
+                    case "type":
+                    {
+                        if (_builtins.Contains(commandTerms[1]))
+                        {
+                            Console.WriteLine($"{commandTerms[0]} is a shell builtin");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{commandTerms[0]}: not found");
+                        }
+                        
+                        break;
                     }
                 }
-            }
 
-            Console.WriteLine(NotFoundMsg(wantedCommand));
-            
-            EndOfLoop: ;
+                Console.WriteLine(NotFoundMsg(wantedCommand));
+            }
         }
     }
 
@@ -40,4 +51,6 @@ class Program
     {
         return $"{command}: command not found";
     }
+
+    static List<string> _builtins = ["exit", "echo", "type"];
 }

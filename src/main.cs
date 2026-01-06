@@ -76,6 +76,10 @@ class Program
                     Console.WriteLine($"{commandName} is {execCandidate}");
                     return true;
                 }
+                else
+                {
+                    Console.WriteLine("not exec'able");
+                }
             }
         }
 

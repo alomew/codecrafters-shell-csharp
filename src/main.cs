@@ -25,7 +25,7 @@ class Program
                             Console.WriteLine(commandTerms[1]);
                         }
 
-                        break;
+                        goto EndOfLoop;
                     }
                     case "type":
                     {
@@ -38,12 +38,14 @@ class Program
                             Console.WriteLine($"{commandTerms[1]}: not found");
                         }
                         
-                        break;
+                        goto EndOfLoop;
                     }
                 }
 
-                Console.WriteLine(NotFoundMsg(wantedCommand));
+                Console.WriteLine(NotFoundMsg(commandTerms[0]));
             }
+            
+            EndOfLoop: ;
         }
     }
 

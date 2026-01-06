@@ -57,6 +57,20 @@ class Program
                         
                         goto EndOfLoop;
                     }
+                    case "cd":
+                    {
+                        var targetDir = commandTerms[1];
+                        if (Directory.Exists(targetDir))
+                        {
+                            Directory.SetCurrentDirectory(targetDir);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"cd: {targetDir}: No such file or directory");
+                        }
+                        
+                        goto EndOfLoop;
+                    }
                 }
                 
                 var execPath = SearchPATH(commandTerms[0]);
@@ -117,5 +131,5 @@ class Program
         return $"{command}: command not found";
     }
 
-    static List<string> _builtins = ["exit", "echo", "type", "pwd"];
+    static List<string> _builtins = ["exit", "echo", "type", "pwd", "cd"];
 }

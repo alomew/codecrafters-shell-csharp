@@ -1,4 +1,4 @@
-using System.Data;
+using System.Diagnostics;
 
 class Program
 {
@@ -14,41 +14,60 @@ class Program
             {
                 var commandTerms = wantedCommand.Split(" ", 2);
 
-                switch (commandTerms[0])
                 {
-                    case "exit":
-                        return;
-                    case "echo":
+                    switch (commandTerms[0])
                     {
-                        if (commandTerms.Length > 1)
+                        case "exit":
+                            return;
+                        case "echo":
                         {
-                            Console.WriteLine(commandTerms[1]);
-                        }
-
-                        goto EndOfLoop;
-                    }
-                    case "type":
-                    {
-                        if (_builtins.Contains(commandTerms[1]))
-                        {
-                            Console.WriteLine($"{commandTerms[1]} is a shell builtin");
-                        }
-                        else
-                        {
-                            var execPath = SearchPATH(commandTerms[1]);
-
-                            if (execPath != null)
+                            if (commandTerms.Length > 1)
                             {
-                                Console.WriteLine($"{commandTerms[1]} is {execPath}");
+                                Console.WriteLine(commandTerms[1]);
+                            }
+
+                            goto EndOfLoop;
+                        }
+                        case "type":
+                        {
+                            if (_builtins.Contains(commandTerms[1]))
+                            {
+                                Console.WriteLine($"{commandTerms[1]} is a shell builtin");
                             }
                             else
                             {
-                                Console.WriteLine($"{commandTerms[1]}: not found");
-                            }
-                        }
+                                var typeExecPath = SearchPATH(commandTerms[1]);
 
-                        goto EndOfLoop;
+                                if (typeExecPath != null)
+                                {
+                                    Console.WriteLine($"{commandTerms[1]} is {typeExecPath}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"{commandTerms[1]}: not found");
+                                }
+                            }
+
+                            goto EndOfLoop;
+                        }
                     }
+                }
+                
+                var execPath = SearchPATH(commandTerms[0]);
+
+                if (execPath != null)
+                {
+                    using Process proc = new Process();
+                    proc.StartInfo.FileName = execPath;
+                    proc.StartInfo.UseShellExecute = false;
+                    proc.StartInfo.RedirectStandardInput = false;
+                    proc.StartInfo.RedirectStandardOutput = false;
+                    proc.StartInfo.RedirectStandardError = false;
+                    proc.StartInfo.CreateNoWindow = true;
+                    proc.Start();
+                    proc.WaitForExit();
+                    
+                    goto EndOfLoop;
                 }
                 
                 Console.WriteLine(NotFoundMsg(commandTerms[0]));

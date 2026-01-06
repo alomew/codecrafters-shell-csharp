@@ -31,11 +31,11 @@ class Program
                     {
                         if (_builtins.Contains(commandTerms[1]))
                         {
-                            Console.WriteLine($"{commandTerms[0]} is a shell builtin");
+                            Console.WriteLine($"{commandTerms[1]} is a shell builtin");
                         }
                         else
                         {
-                            Console.WriteLine($"{commandTerms[0]}: not found");
+                            Console.WriteLine($"{commandTerms[1]}: not found");
                         }
                         
                         break;

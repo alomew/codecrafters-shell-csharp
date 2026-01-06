@@ -21,4 +21,4 @@ set -e # Exit early if any commands fail
 #
 # - Edit this to change how your program runs locally
 # - Edit .codecrafters/run.sh to change how your program runs remotely
-dotnet run /tmp/codecrafters-build-csharp/codecrafters-shell "$@"
+dotnet run --no-build /tmp/codecrafters-build-csharp/codecrafters-shell "$@"

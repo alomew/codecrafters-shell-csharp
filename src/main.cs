@@ -14,42 +14,48 @@ class Program
             {
                 var commandTerms = wantedCommand.Split(" ");
 
+                switch (commandTerms[0])
                 {
-                    switch (commandTerms[0])
+                    case "exit":
                     {
-                        case "exit":
-                            return;
-                        case "echo":
+                        return;
+                    }
+                    case "echo":
+                    {
+                        if (commandTerms.Length > 1)
                         {
-                            if (commandTerms.Length > 1)
-                            {
-                                Console.WriteLine(string.Join(' ', commandTerms[1..]));
-                            }
-
-                            goto EndOfLoop;
+                            Console.WriteLine(string.Join(' ', commandTerms[1..]));
                         }
-                        case "type":
+
+                        goto EndOfLoop;
+                    }
+                    case "type":
+                    {
+                        if (_builtins.Contains(commandTerms[1]))
                         {
-                            if (_builtins.Contains(commandTerms[1]))
+                            Console.WriteLine($"{commandTerms[1]} is a shell builtin");
+                        }
+                        else
+                        {
+                            var typeExecPath = SearchPATH(commandTerms[1]);
+
+                            if (typeExecPath != null)
                             {
-                                Console.WriteLine($"{commandTerms[1]} is a shell builtin");
+                                Console.WriteLine($"{commandTerms[1]} is {typeExecPath}");
                             }
                             else
                             {
-                                var typeExecPath = SearchPATH(commandTerms[1]);
-
-                                if (typeExecPath != null)
-                                {
-                                    Console.WriteLine($"{commandTerms[1]} is {typeExecPath}");
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"{commandTerms[1]}: not found");
-                                }
+                                Console.WriteLine($"{commandTerms[1]}: not found");
                             }
-
-                            goto EndOfLoop;
                         }
+
+                        goto EndOfLoop;
+                    }
+                    case "pwd":
+                    {
+                        Console.WriteLine(Environment.CurrentDirectory);
+                        
+                        goto EndOfLoop;
                     }
                 }
                 
@@ -111,5 +117,5 @@ class Program
         return $"{command}: command not found";
     }
 
-    static List<string> _builtins = ["exit", "echo", "type"];
+    static List<string> _builtins = ["exit", "echo", "type", "pwd"];
 }

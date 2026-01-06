@@ -41,12 +41,45 @@ class Program
                         goto EndOfLoop;
                     }
                 }
+                
+                if (SearchPATH(commandTerms[0]))
+                {
+                    goto EndOfLoop;
+                }
 
                 Console.WriteLine(NotFoundMsg(commandTerms[0]));
             }
             
             EndOfLoop: ;
         }
+    }
+
+    static bool SearchPATH(string commandName)
+    {
+        var PATH = Environment.GetEnvironmentVariable("PATH");
+
+        if (PATH == null)
+        {
+            return false;
+        }
+        
+        foreach (var dir in PATH.Split(Path.PathSeparator))
+        {
+            var execCandidate = Path.Combine(dir, commandName);
+
+            if (Path.Exists(execCandidate))
+            {
+                UnixFileMode mode = File.GetUnixFileMode(execCandidate);
+
+                if ((mode & UnixFileMode.UserExecute) != 0)
+                {
+                    Console.WriteLine($"{commandName} is {execCandidate}");
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     static string NotFoundMsg(string? command)

@@ -58,13 +58,12 @@ class Program
                 if (execPath != null)
                 {
                     using var proc = new Process();
-                    var startInfo = new ProcessStartInfo(execPath, commandTerms[1..])
+                    var startInfo = new ProcessStartInfo(commandTerms[0], commandTerms[1..])
                     {
-                        UseShellExecute = false,
                         RedirectStandardInput = false,
                         RedirectStandardOutput = false,
                         RedirectStandardError = false,
-                        CreateNoWindow = true
+                        CreateNoWindow = true,
                     };
                     proc.StartInfo = startInfo;
                     proc.Start();

@@ -1,3 +1,5 @@
+namespace codecraftersshell;
+
 using System.Diagnostics;
 
 class Program
@@ -9,97 +11,104 @@ class Program
             Console.Write("$ ");
 
             var wantedCommand = Console.ReadLine();
-            
+
             if (wantedCommand != null)
             {
-                var commandTerms = wantedCommand.Split(" ");
+                var commandTerms = new CommandLineParser(wantedCommand).ParseArgs();
 
-                switch (commandTerms[0])
+                if (commandTerms == null)
                 {
-                    case "exit":
+                    Console.WriteLine("could not parse line");
+                }
+                else
+                {
+                    switch (commandTerms[0])
                     {
-                        return;
-                    }
-                    case "echo":
-                    {
-                        if (commandTerms.Length > 1)
+                        case "exit":
                         {
-                            Console.WriteLine(string.Join(' ', commandTerms[1..]));
+                            return;
                         }
-
-                        goto EndOfLoop;
-                    }
-                    case "type":
-                    {
-                        if (_builtins.Contains(commandTerms[1]))
+                        case "echo":
                         {
-                            Console.WriteLine($"{commandTerms[1]} is a shell builtin");
-                        }
-                        else
-                        {
-                            var typeExecPath = SearchPATH(commandTerms[1]);
-
-                            if (typeExecPath != null)
+                            if (commandTerms.Count > 1)
                             {
-                                Console.WriteLine($"{commandTerms[1]} is {typeExecPath}");
+                                Console.WriteLine(string.Join(' ', commandTerms[1..]));
+                            }
+
+                            goto EndOfLoop;
+                        }
+                        case "type":
+                        {
+                            if (_builtins.Contains(commandTerms[1]))
+                            {
+                                Console.WriteLine($"{commandTerms[1]} is a shell builtin");
                             }
                             else
                             {
-                                Console.WriteLine($"{commandTerms[1]}: not found");
+                                var typeExecPath = SearchPATH(commandTerms[1]);
+
+                                if (typeExecPath != null)
+                                {
+                                    Console.WriteLine($"{commandTerms[1]} is {typeExecPath}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"{commandTerms[1]}: not found");
+                                }
                             }
+
+                            goto EndOfLoop;
                         }
+                        case "pwd":
+                        {
+                            Console.WriteLine(Environment.CurrentDirectory);
+
+                            goto EndOfLoop;
+                        }
+                        case "cd":
+                        {
+                            var targetDir = commandTerms[1];
+                            if (targetDir == "~")
+                            {
+                                targetDir = Environment.GetEnvironmentVariable("HOME");
+                            }
+
+                            if (Directory.Exists(targetDir))
+                            {
+                                Directory.SetCurrentDirectory(targetDir);
+                            }
+                            else
+                            {
+                                Console.WriteLine($"cd: {targetDir}: No such file or directory");
+                            }
+
+                            goto EndOfLoop;
+                        }
+                    }
+
+                    var execPath = SearchPATH(commandTerms[0]);
+
+                    if (execPath != null)
+                    {
+                        using var proc = new Process();
+                        var startInfo = new ProcessStartInfo(commandTerms[0], commandTerms[1..])
+                        {
+                            RedirectStandardInput = false,
+                            RedirectStandardOutput = false,
+                            RedirectStandardError = false,
+                            CreateNoWindow = true,
+                        };
+                        proc.StartInfo = startInfo;
+                        proc.Start();
+                        proc.WaitForExit();
 
                         goto EndOfLoop;
                     }
-                    case "pwd":
-                    {
-                        Console.WriteLine(Environment.CurrentDirectory);
-                        
-                        goto EndOfLoop;
-                    }
-                    case "cd":
-                    {
-                        var targetDir = commandTerms[1];
-                        if (targetDir == "~")
-                        {
-                            targetDir = Environment.GetEnvironmentVariable("HOME");
-                        }
-                        
-                        if (Directory.Exists(targetDir))
-                        {
-                            Directory.SetCurrentDirectory(targetDir);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"cd: {targetDir}: No such file or directory");
-                        }
-                        
-                        goto EndOfLoop;
-                    }
-                }
-                
-                var execPath = SearchPATH(commandTerms[0]);
 
-                if (execPath != null)
-                {
-                    using var proc = new Process();
-                    var startInfo = new ProcessStartInfo(commandTerms[0], commandTerms[1..])
-                    {
-                        RedirectStandardInput = false,
-                        RedirectStandardOutput = false,
-                        RedirectStandardError = false,
-                        CreateNoWindow = true,
-                    };
-                    proc.StartInfo = startInfo;
-                    proc.Start();
-                    proc.WaitForExit();
-                    
-                    goto EndOfLoop;
+                    Console.WriteLine($"{commandTerms[0]}: command not found");
                 }
-                
-                Console.WriteLine(NotFoundMsg(commandTerms[0]));
             }
-            
+
             EndOfLoop: ;
         }
     }
@@ -129,11 +138,6 @@ class Program
         }
 
         return null;
-    }
-
-    static string NotFoundMsg(string? command)
-    {
-        return $"{command}: command not found";
     }
 
     static List<string> _builtins = ["exit", "echo", "type", "pwd", "cd"];

@@ -12,10 +12,19 @@ public enum ParserState
     Spaces,
     Arg,
     InsideSingleQuote,
-    JustLeftQuote,
     InsideDoubleQuote,
+    JustLeftQuote,
+    JustAfterBackslash,
     Done,
     Failed
+}
+
+public enum SpecialChar
+{
+    Space,
+    SingleQuote,
+    DoubleQuote,
+    Backslash
 }
 
 public class CommandLineParser(string commandLine)
@@ -39,6 +48,7 @@ public class CommandLineParser(string commandLine)
                     case ParserState.Command:
                     case ParserState.InsideSingleQuote:
                     case ParserState.InsideDoubleQuote:
+                    case ParserState.JustAfterBackslash:
                         _state = ParserState.Failed;
                         break;
                     case ParserState.BlankCommand:
@@ -83,6 +93,9 @@ public class CommandLineParser(string commandLine)
                         break;
                     case ParserState.JustLeftQuote:
                         JustLeftQuoteStep();
+                        break;
+                    case ParserState.JustAfterBackslash:
+                        JustAfterBackslashStep();
                         break;
                     case ParserState.Failed:
                         return null;
@@ -150,31 +163,46 @@ public class CommandLineParser(string commandLine)
          * 
          */
 
-        var untilSpaceMatch = new Regex(@"\G\S+").Match(commandLine, _index);
-        var untilSingleQuoteMatch = new Regex(@"\G[^']+").Match(commandLine, _index);
-        var untilDoubleQuoteMatch = new Regex(@"\G[^""]+").Match(commandLine, _index);
+        var matches = new List<(SpecialChar Char, Match Match)>()
+        {
+            (SpecialChar.Space, new Regex(@"\G\S+").Match(commandLine, _index)),
+            (SpecialChar.SingleQuote, new Regex(@"\G[^']+").Match(commandLine, _index)),
+            (SpecialChar.DoubleQuote, new Regex(@"\G[^""]+").Match(commandLine, _index)),
+            (SpecialChar.Backslash, new Regex(@"\G[^\\]+").Match(commandLine, _index))
+        };
+
+        var shortestMatch = matches.MinBy(x => x.Match.Length);
 
         // we see a quote first
-        if (untilSingleQuoteMatch.Length < untilSpaceMatch.Length
-            && untilSingleQuoteMatch.Length < untilDoubleQuoteMatch.Length)
+        if (shortestMatch.Char == SpecialChar.SingleQuote)
         {
-            _currentArg.Append(untilSingleQuoteMatch.Value);
-            _index += untilSingleQuoteMatch.Length + 1;
+            _currentArg.Append(shortestMatch.Match.Value);
+            _index += shortestMatch.Match.Length + 1;
             _state = ParserState.InsideSingleQuote;
         }
-        else if (untilDoubleQuoteMatch.Length < untilSpaceMatch.Length)
+        else if (shortestMatch.Char == SpecialChar.DoubleQuote)
         {
-            _currentArg.Append(untilDoubleQuoteMatch.Value);
-            _index += untilDoubleQuoteMatch.Length + 1;
+            _currentArg.Append(shortestMatch.Match.Value);
+            _index += shortestMatch.Match.Length + 1;
             _state = ParserState.InsideDoubleQuote;
         }
-        else
+        else if (shortestMatch.Char == SpecialChar.Space)
         {
-            _currentArg.Append(untilSpaceMatch.Value);
-            _index += untilSpaceMatch.Length;
+            _currentArg.Append(shortestMatch.Match.Value);
+            _index += shortestMatch.Match.Length;
             _sofarArgs.Add(_currentArg.ToString());
             _currentArg.Clear();
             _state = ParserState.Spaces;
+        }
+        else if (shortestMatch.Char == SpecialChar.Backslash)
+        {
+            _currentArg.Append(shortestMatch.Match.Value);
+            _index += shortestMatch.Match.Length + 1;
+            _state = ParserState.JustAfterBackslash;
+        }
+        else
+        {
+            throw new ArgumentOutOfRangeException();
         }
     }
 
@@ -228,5 +256,12 @@ public class CommandLineParser(string commandLine)
         {
             _state = ParserState.Arg;
         }
+    }
+
+    private void JustAfterBackslashStep()
+    {
+        _currentArg.Append(commandLine[_index]);
+        _index++;
+        _state = ParserState.Arg;
     }
 }

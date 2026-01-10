@@ -15,6 +15,7 @@ public enum ParserState
     InsideDoubleQuote,
     JustLeftQuote,
     JustAfterBackslash,
+    JustAfterBackslashInDoubleQuote,
     Done,
     Failed
 }
@@ -49,6 +50,7 @@ public class CommandLineParser(string commandLine)
                     case ParserState.InsideSingleQuote:
                     case ParserState.InsideDoubleQuote:
                     case ParserState.JustAfterBackslash:
+                    case ParserState.JustAfterBackslashInDoubleQuote:
                         _state = ParserState.Failed;
                         break;
                     case ParserState.BlankCommand:
@@ -96,6 +98,9 @@ public class CommandLineParser(string commandLine)
                         break;
                     case ParserState.JustAfterBackslash:
                         JustAfterBackslashStep();
+                        break;
+                    case ParserState.JustAfterBackslashInDoubleQuote:
+                        JustAfterBackslashInDoubleQuoteStep();
                         break;
                     case ParserState.Failed:
                         return null;
@@ -226,20 +231,30 @@ public class CommandLineParser(string commandLine)
     
     private void InsideDoubleQuoteStep()
     {
-        var untilNextQuoteMatch = new Regex(@"\G[^""]*").Match(commandLine, _index);
+        var untilDoubleQuoteMatch = new Regex(@"\G[^""]*").Match(commandLine, _index);
+        var untilBackslashMatch = new Regex(@"\G[^\\]*").Match(commandLine, _index);
 
-        if (!untilNextQuoteMatch.Success 
-            // below check will fail the parse if there isn't a closing quote
-            || _index + untilNextQuoteMatch.Length == commandLine.Length
-           )
+        if (untilBackslashMatch.Length < untilDoubleQuoteMatch.Length)
         {
-            _state = ParserState.Failed;
-            return;
+            _currentArg.Append(untilBackslashMatch.Value);
+            _index += untilBackslashMatch.Length + 1;
+            _state = ParserState.JustAfterBackslashInDoubleQuote;
         }
+        else
+        {
+            if (!untilDoubleQuoteMatch.Success 
+                // below check will fail the parse if there isn't a closing quote
+                || _index + untilDoubleQuoteMatch.Length == commandLine.Length
+               )
+            {
+                _state = ParserState.Failed;
+                return;
+            }
         
-        _currentArg.Append(untilNextQuoteMatch.Value);
-        _index += untilNextQuoteMatch.Length + 1;
-        _state = ParserState.JustLeftQuote;
+            _currentArg.Append(untilDoubleQuoteMatch.Value);
+            _index += untilDoubleQuoteMatch.Length + 1;
+            _state = ParserState.JustLeftQuote;
+        }
     }
 
     private void JustLeftQuoteStep()
@@ -263,5 +278,19 @@ public class CommandLineParser(string commandLine)
         _currentArg.Append(commandLine[_index]);
         _index++;
         _state = ParserState.Arg;
+    }
+
+    private void JustAfterBackslashInDoubleQuoteStep()
+    {
+        var thisChar = commandLine[_index];
+        
+        if (thisChar is not '"' and not '\\')
+        {
+            _currentArg.Append('\\');
+        }
+        
+        _currentArg.Append(thisChar);
+        _index++;
+        _state = ParserState.InsideDoubleQuote;
     }
 }

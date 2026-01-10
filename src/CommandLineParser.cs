@@ -6,12 +6,14 @@ using System.Text.RegularExpressions;
 
 public enum ParserState
 {
+    Start,
     Command,
     BlankCommand,
     Spaces,
     Arg,
-    InsideQuote,
+    InsideSingleQuote,
     JustLeftQuote,
+    InsideDoubleQuote,
     Done,
     Failed
 }
@@ -19,7 +21,7 @@ public enum ParserState
 public class CommandLineParser(string commandLine)
 {
     private int _index = 0;
-    private ParserState _state = ParserState.Command;
+    private ParserState _state = ParserState.Start;
     private List<string> _sofarArgs = [];
     private StringBuilder _currentArg = new();
 
@@ -31,8 +33,12 @@ public class CommandLineParser(string commandLine)
             {
                 switch (_state)
                 {
+                    case ParserState.Start:
+                        _state = ParserState.Done;
+                        break;
                     case ParserState.Command:
-                    case ParserState.InsideQuote:
+                    case ParserState.InsideSingleQuote:
+                    case ParserState.InsideDoubleQuote:
                         _state = ParserState.Failed;
                         break;
                     case ParserState.BlankCommand:
@@ -56,6 +62,7 @@ public class CommandLineParser(string commandLine)
             {
                 switch (_state)
                 {
+                    case ParserState.Start:
                     case ParserState.Command:
                         CommandStep();
                         break;
@@ -68,8 +75,11 @@ public class CommandLineParser(string commandLine)
                     case ParserState.Arg:
                         ArgStep();
                         break;
-                    case ParserState.InsideQuote:
+                    case ParserState.InsideSingleQuote:
                         InsideSingleQuoteStep();
+                        break;
+                    case ParserState.InsideDoubleQuote:
+                        InsideDoubleQuoteStep();
                         break;
                     case ParserState.JustLeftQuote:
                         JustLeftQuoteStep();
@@ -87,7 +97,7 @@ public class CommandLineParser(string commandLine)
 
     private void BlankCommandStep()
     {
-        var onlySpacesMatch = new Regex(@"^\s+$").Match(commandLine, _index);
+        var onlySpacesMatch = new Regex(@"^\s*$").Match(commandLine);
         if (!onlySpacesMatch.Success)
         {
             _state = ParserState.Failed;
@@ -141,14 +151,22 @@ public class CommandLineParser(string commandLine)
          */
 
         var untilSpaceMatch = new Regex(@"\G\S+").Match(commandLine, _index);
-        var untilQuoteMatch = new Regex(@"\G[^']+").Match(commandLine, _index);
+        var untilSingleQuoteMatch = new Regex(@"\G[^']+").Match(commandLine, _index);
+        var untilDoubleQuoteMatch = new Regex(@"\G[^""]+").Match(commandLine, _index);
 
         // we see a quote first
-        if (untilQuoteMatch.Length < untilSpaceMatch.Length)
+        if (untilSingleQuoteMatch.Length < untilSpaceMatch.Length
+            && untilSingleQuoteMatch.Length < untilDoubleQuoteMatch.Length)
         {
-            _currentArg.Append(untilQuoteMatch.Value);
-            _index += untilQuoteMatch.Length + 1;
-            _state = ParserState.InsideQuote;
+            _currentArg.Append(untilSingleQuoteMatch.Value);
+            _index += untilSingleQuoteMatch.Length + 1;
+            _state = ParserState.InsideSingleQuote;
+        }
+        else if (untilDoubleQuoteMatch.Length < untilSpaceMatch.Length)
+        {
+            _currentArg.Append(untilDoubleQuoteMatch.Value);
+            _index += untilDoubleQuoteMatch.Length + 1;
+            _state = ParserState.InsideDoubleQuote;
         }
         else
         {
@@ -164,7 +182,28 @@ public class CommandLineParser(string commandLine)
     {
         var untilNextQuoteMatch = new Regex(@"\G[^']*").Match(commandLine, _index);
 
-        if (!untilNextQuoteMatch.Success || _index + untilNextQuoteMatch.Length == commandLine.Length)
+        if (!untilNextQuoteMatch.Success 
+            // below check will fail the parse if there isn't a closing quote
+            || _index + untilNextQuoteMatch.Length == commandLine.Length
+            )
+        {
+            _state = ParserState.Failed;
+            return;
+        }
+        
+        _currentArg.Append(untilNextQuoteMatch.Value);
+        _index += untilNextQuoteMatch.Length + 1;
+        _state = ParserState.JustLeftQuote;
+    }
+    
+    private void InsideDoubleQuoteStep()
+    {
+        var untilNextQuoteMatch = new Regex(@"\G[^""]*").Match(commandLine, _index);
+
+        if (!untilNextQuoteMatch.Success 
+            // below check will fail the parse if there isn't a closing quote
+            || _index + untilNextQuoteMatch.Length == commandLine.Length
+           )
         {
             _state = ParserState.Failed;
             return;

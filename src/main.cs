@@ -20,6 +20,8 @@ class Program
                 {
                     Console.WriteLine("could not parse line");
                 }
+                else if (commandTerms.Count == 0)
+                { }
                 else
                 {
                     switch (commandTerms[0])
@@ -115,6 +117,10 @@ class Program
 
     static string? SearchPATH(string commandName)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new Exception("we don't use windows");
+        }
         var PATH = Environment.GetEnvironmentVariable("PATH");
 
         if (PATH == null)

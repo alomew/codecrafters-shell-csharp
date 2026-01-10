@@ -128,23 +128,10 @@ public class CommandLineParser(string commandLine)
 
     private void CommandStep()
     {
-        var commandMatch = new Regex(@"\G\w*").Match(commandLine);
+        var firstCharMatch = new Regex(@"\G\s*").Match(commandLine);
 
-        if (!commandMatch.Success)
-        {
-            _state = ParserState.Failed;
-            return;
-        }
-
-        if (commandMatch.Value == "")
-        {
-            _state = ParserState.BlankCommand;
-            return;
-        }
-        
-        _sofarArgs.Add(commandMatch.Value);
-        _index += commandMatch.Length;
-        _state = ParserState.Spaces;
+        _index += firstCharMatch.Length;
+        _state = ParserState.Arg;
     }
 
     private void SpaceStep()

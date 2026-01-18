@@ -44,6 +44,7 @@ class Program
                     }
                     
                     using var outputDirector = outputDirectorFactory();
+                    using IStreamDirector errorDirector = new ConsoleDirector();
 
                     switch (commandNode.Command)
                     {
@@ -130,7 +131,7 @@ class Program
                         // downside of this stream stuff: we can only think about lines at a time
                         // so we have to be okay to lose interactivity
                         proc.OutputDataReceived += outputDirector.Handler;
-                        proc.ErrorDataReceived += outputDirector.Handler;
+                        proc.ErrorDataReceived += errorDirector.Handler;
                         
                         proc.Start();
                         

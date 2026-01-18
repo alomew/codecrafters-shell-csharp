@@ -1,4 +1,5 @@
 using System.Text;
+using codecraftersshell.ast;
 
 namespace codecraftersshell;
 
@@ -34,6 +35,34 @@ public class CommandLineParser(string commandLine)
     private ParserState _state = ParserState.Start;
     private List<string> _sofarArgs = [];
     private StringBuilder _currentArg = new();
+
+    public IAstNode Parse()
+    {
+        var argsList = ParseArgs();
+
+        if (argsList == null)
+        {
+            return new EmptyAst();
+        }
+
+        var ix = argsList.FindIndex(s => s is ">" or "1>");
+
+        if (ix == 0)
+        {
+            return new InvalidAst();
+        }
+
+        if (ix > 0)
+        {
+            if (ix != argsList.Count - 2)
+            {
+                return new InvalidAst();
+            }
+            return new RedirectNode(new CommandNode(argsList[0], (ix == 1) ? Array.Empty<string>() : argsList[1..ix]), new FileNode(argsList[ix + 1]));
+        }
+            
+        return new CommandNode(argsList[0], (argsList.Count == 1) ? Array.Empty<string>() : argsList[1..]);
+    }
 
     public List<string>? ParseArgs()
     {

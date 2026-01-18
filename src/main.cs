@@ -1,3 +1,5 @@
+using codecraftersshell.ast;
+
 namespace codecraftersshell;
 
 using System.Diagnostics;
@@ -14,17 +16,36 @@ class Program
 
             if (wantedCommand != null)
             {
-                var commandTerms = new CommandLineParser(wantedCommand).ParseArgs();
+                var ast = new CommandLineParser(wantedCommand).Parse();
 
-                if (commandTerms == null)
+                if (ast is InvalidAst)
                 {
                     Console.WriteLine("could not parse line");
                 }
-                else if (commandTerms.Count == 0)
+                else if (ast is EmptyAst)
                 { }
-                else
+                else if (ast is CommandNode or RedirectNode)
                 {
-                    switch (commandTerms[0])
+                    Func<IStreamDirector> outputDirectorFactory;
+                    CommandNode commandNode;
+
+                    switch (ast)
+                    {
+                        case RedirectNode redirectNode:
+                            outputDirectorFactory = () => new FileDirector(redirectNode.FileNode.FilePath);
+                            commandNode = redirectNode.CommandNode;
+                            break;
+                        case CommandNode cNode:
+                            outputDirectorFactory = () => new ConsoleDirector();
+                            commandNode = cNode;
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException(ast.GetType().Name);
+                    }
+                    
+                    using var outputDirector = outputDirectorFactory();
+
+                    switch (commandNode.Command)
                     {
                         case "exit":
                         {
@@ -32,30 +53,34 @@ class Program
                         }
                         case "echo":
                         {
-                            if (commandTerms.Count > 1)
+                            if (commandNode.Arguments.Any())
                             {
-                                Console.WriteLine(string.Join(' ', commandTerms[1..]));
+                                outputDirector.WriteLine(string.Join(' ', commandNode.Arguments));
                             }
 
                             goto EndOfLoop;
                         }
                         case "type":
                         {
-                            if (_builtins.Contains(commandTerms[1]))
+                            if (commandNode.Arguments.Any())
                             {
-                                Console.WriteLine($"{commandTerms[1]} is a shell builtin");
-                            }
-                            else
-                            {
-                                var typeExecPath = SearchPATH(commandTerms[1]);
-
-                                if (typeExecPath != null)
+                                var firstArg = commandNode.Arguments.First();
+                                if (_builtins.Contains(firstArg))
                                 {
-                                    Console.WriteLine($"{commandTerms[1]} is {typeExecPath}");
+                                    outputDirector.WriteLine($"{firstArg} is a shell builtin");
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"{commandTerms[1]}: not found");
+                                    var typeExecPath = SearchPATH(firstArg);
+
+                                    if (typeExecPath != null)
+                                    {
+                                        outputDirector.WriteLine($"{firstArg} is {typeExecPath}");
+                                    }
+                                    else
+                                    {
+                                        outputDirector.WriteLine($"{firstArg}: not found");
+                                    }
                                 }
                             }
 
@@ -63,13 +88,13 @@ class Program
                         }
                         case "pwd":
                         {
-                            Console.WriteLine(Environment.CurrentDirectory);
+                            outputDirector.WriteLine(Environment.CurrentDirectory);
 
                             goto EndOfLoop;
                         }
                         case "cd":
                         {
-                            var targetDir = commandTerms[1];
+                            var targetDir = commandNode.Arguments.FirstOrDefault("~");
                             if (targetDir == "~")
                             {
                                 targetDir = Environment.GetEnvironmentVariable("HOME");
@@ -81,19 +106,19 @@ class Program
                             }
                             else
                             {
-                                Console.WriteLine($"cd: {targetDir}: No such file or directory");
+                                outputDirector.WriteLine($"cd: {targetDir}: No such file or directory");
                             }
 
                             goto EndOfLoop;
                         }
                     }
 
-                    var execPath = SearchPATH(commandTerms[0]);
+                    var execPath = SearchPATH(commandNode.Command);
 
                     if (execPath != null)
                     {
                         using var proc = new Process();
-                        var startInfo = new ProcessStartInfo(commandTerms[0], commandTerms[1..])
+                        var startInfo = new ProcessStartInfo(commandNode.Command, commandNode.Arguments)
                         {
                             RedirectStandardInput = false,
                             RedirectStandardOutput = true,
@@ -102,14 +127,10 @@ class Program
                         };
                         proc.StartInfo = startInfo;
 
-                        proc.OutputDataReceived += (sender, e) =>
-                        {
-                            Console.WriteLine(e.Data);
-                        };
-                        proc.ErrorDataReceived += (sender, e) =>
-                        {
-                            Console.WriteLine(e.Data);
-                        };
+                        // downside of this stream stuff: we can only think about lines at a time
+                        // so we have to be okay to lose interactivity
+                        proc.OutputDataReceived += outputDirector.Handler;
+                        proc.ErrorDataReceived += outputDirector.Handler;
                         
                         proc.Start();
                         
@@ -121,7 +142,7 @@ class Program
                         goto EndOfLoop;
                     }
 
-                    Console.WriteLine($"{commandTerms[0]}: command not found");
+                    outputDirector.WriteLine($"{commandNode.Command}: command not found");
                 }
             }
 

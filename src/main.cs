@@ -96,14 +96,28 @@ class Program
                         var startInfo = new ProcessStartInfo(commandTerms[0], commandTerms[1..])
                         {
                             RedirectStandardInput = false,
-                            RedirectStandardOutput = false,
-                            RedirectStandardError = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
                             CreateNoWindow = true,
                         };
                         proc.StartInfo = startInfo;
-                        proc.Start();
-                        proc.WaitForExit();
 
+                        proc.OutputDataReceived += (sender, e) =>
+                        {
+                            Console.WriteLine(e.Data);
+                        };
+                        proc.ErrorDataReceived += (sender, e) =>
+                        {
+                            Console.WriteLine(e.Data);
+                        };
+                        
+                        proc.Start();
+                        
+                        proc.BeginOutputReadLine();
+                        proc.BeginErrorReadLine();
+
+                        proc.WaitForExit();
+                        
                         goto EndOfLoop;
                     }
 
